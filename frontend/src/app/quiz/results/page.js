@@ -2,6 +2,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
+import TrackCard from '@/components/TrackCard'; // We will create this next
 
 function ResultsContent() {
   const searchParams = useSearchParams();
@@ -13,38 +14,32 @@ function ResultsContent() {
   const token = searchParams.get('token');
 
   useEffect(() => {
-    const getTracks = async () => {
-      // 1. Pull answers from where they were saved in the previous step
+    const generatePlaylist = async () => {
       const savedAnswers = localStorage.getItem('quiz_answers');
       const answers = savedAnswers ? JSON.parse(savedAnswers) : {};
-      
-      console.log("🛠️ Debug: Token found:", token ? "Yes" : "No");
-      console.log("🛠️ Debug: Answers found:", answers);
 
       if (!token) {
-        setError("Missing Spotify Token. Please go back and login.");
+        setError("Missing Spotify access token. Please log in again.");
         setLoading(false);
         return;
       }
 
       try {
-        // 2. Call your Flask Backend
+        // Calling your Flask backend on port 4040
         const response = await axios.post("http://localhost:4040/generate", {
           token: token,
           answers: answers
         });
-
-        console.log("✅ Success: Tracks received from Flask!");
         setTracks(response.data);
       } catch (err) {
-        console.error("❌ API Error:", err);
-        setError("Backend is not responding. Is Flask running on port 4040?");
+        console.error("API Error:", err);
+        setError("The vibe engine is currently offline. Please check your backend.");
       } finally {
         setLoading(false);
       }
     };
 
-    getTracks();
+    generatePlaylist();
   }, [token]);
 
   const handleSync = async () => {
@@ -56,60 +51,39 @@ function ResultsContent() {
         track_uris: trackUris
       });
       if (res.data.status === "success") {
-        alert("Playlist created! Check your Spotify app.");
+        alert("Playlist successfully created in your Spotify account!");
         window.open(res.data.url, "_blank");
       }
     } catch (err) {
-      alert("Failed to sync playlist.");
+      alert("Failed to sync playlist to Spotify.");
     } finally {
       setSyncing(false);
     }
   };
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
-      <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p>Fetching your frequency...</p>
-    </div>
-  );
-
-  if (error) return (
-    <div className="flex items-center justify-center min-h-screen bg-black text-red-500">
-      <p>{error}</p>
-    </div>
-  );
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState message={error} />;
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-12">
+    <div className="min-h-screen bg-black text-white p-6 md:p-12">
+      <div className="max-w-5xl mx-auto">
+        <header className="flex justify-between items-end mb-10 border-b border-zinc-800 pb-8">
           <div>
-            <h1 className="text-6xl font-black text-green-500 tracking-tighter">YOUR VIBE</h1>
-            <p className="text-gray-400 mt-2">Curated for your current frequency.</p>
+            <h1 className="text-7xl font-black text-green-500 tracking-tighter italic">YOUR VIBE</h1>
+            <p className="text-zinc-400 mt-2 text-lg">AI-curated selection based on your frequency.</p>
           </div>
           <button 
             onClick={handleSync}
             disabled={syncing}
-            className="bg-green-500 text-black px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform disabled:opacity-50"
+            className="bg-green-500 text-black px-10 py-4 rounded-full font-bold hover:scale-105 transition-all disabled:opacity-50"
           >
-            {syncing ? "SYNCING..." : "Sync to Spotify"}
+            {syncing ? "SYNCING..." : "SYNC TO SPOTIFY"}
           </button>
-        </div>
+        </header>
 
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {tracks?.map((track, i) => (
-            <div key={track.id} className="group flex items-center bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 hover:border-green-500/50 transition-colors">
-              <img 
-                src={track.album_art || "https://via.placeholder.com/150"} 
-                className="w-16 h-16 rounded-lg shadow-lg" 
-                alt="cover"
-              />
-              <div className="ml-6 flex-1">
-                <h3 className="text-xl font-bold group-hover:text-green-400 transition-colors">{track.name}</h3>
-                <p className="text-zinc-500">{track.artist}</p>
-              </div>
-              <span className="text-zinc-700 font-mono text-2xl">#{i + 1}</span>
-            </div>
+            <TrackCard key={track.id} track={track} index={i} />
           ))}
         </div>
       </div>
@@ -117,10 +91,23 @@ function ResultsContent() {
   );
 }
 
-// Next.js requires Suspense for useSearchParams
+// Reusable UI States
+const LoadingState = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white">
+    <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+    <p className="text-xl font-medium tracking-widest animate-pulse">ANALYZING FREQUENCY...</p>
+  </div>
+);
+
+const ErrorState = ({ message }) => (
+  <div className="flex items-center justify-center min-h-screen bg-black text-red-500 p-4 text-center">
+    <p className="text-lg font-bold">ERROR: {message}</p>
+  </div>
+);
+
 export default function Page() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<LoadingState />}>
       <ResultsContent />
     </Suspense>
   );
