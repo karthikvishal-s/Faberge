@@ -27,10 +27,18 @@ def login():
 @app.route('/callback')
 def callback():
     code = request.args.get('code')
-    token_info = sp_oauth.get_access_token(code)
-   
-    return redirect(f"http://localhost:3000/quiz?token={token_info['access_token']}")
+    # Updated to avoid the DeprecationWarning
+    token_info = sp_oauth.get_access_token(code, as_dict=False) 
+    
+    # Check if we got a string or a dict and extract the token
+    access_token = token_info['access_token'] if isinstance(token_info, dict) else token_info
+    
+    return redirect(f"http://localhost:3000/quiz?token={access_token}")
 
+@app.route('/questions', methods=['GET']) # Explicitly add GET
+def questions():
+    from logic import get_questions
+    return jsonify(get_questions())
 @app.route('/generate', methods=['POST'])
 def generate():
     data = request.json

@@ -1,5 +1,13 @@
 # backend/logic.py
 
+# backend/logic.py
+def get_questions():
+    return [
+        {"id": "q1", "text": "What's the vibe? (1: Low Energy, 10: High Energy)", "min": "Zombie", "max": "Nuclear"},
+        {"id": "q2", "text": "Mood level? (1: Sad/Reflective, 10: Pure Joy)", "min": "Deep Blue", "max": "Sunshine"},
+        # ... and so on
+    ]
+
 def calculate_vibe(answers):
     # Default median scores
     vibe = {
