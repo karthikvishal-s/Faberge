@@ -1,101 +1,75 @@
 "use client";
+
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter, useSearchParams } from 'next/navigation';
 import axios from 'axios';
+import { useSearchParams, useRouter } from 'next/navigation';
+import LanguageSelector from '@/components/LanguageSelector';
 
-export default function Quiz() {
-  const router = useRouter();
+export default function QuizPage() {
   const searchParams = useSearchParams();
-  const token = searchParams.get('token'); // Gets the token from the URL after Spotify login
+  const router = useRouter();
+  const token = searchParams.get('token');
 
-  const [step, setStep] = useState(0);
   const [questions, setQuestions] = useState([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [language, setLanguage] = useState('en');
 
   useEffect(() => {
-    // Fetch questions from your Flask backend (Port 4040)
-    axios.get('http://localhost:4040/questions')
-      .then(res => {
-        setQuestions(res.data);
-        setLoading(false);
-      });
+    axios.get('http://localhost:4040/questions').then(res => setQuestions(res.data));
   }, []);
 
-  // THE MISSING FUNCTION
-  const submitQuiz = async (finalAnswers) => {
-    setLoading(true);
-    try {
-      // Save answers to localStorage so the Results page can read them
-      localStorage.setItem('vibe_answers', JSON.stringify(finalAnswers));
-      
-      // Navigate to the results page with the token
-      router.push(`/quiz/results?token=${token}`);
-    } catch (err) {
-        console.error("Submission failed", err);
-        alert("Failed to process your vibe. Try again!");
-        setLoading(false);
-    }
-  };
-
-  const handleAnswer = (val) => {
-    const currentQ = questions[step];
-    const newAnswers = { ...answers, [currentQ.id]: val };
+  const handleSelect = (option) => {
+    const newAnswers = { ...answers, [questions[currentIdx].id]: option };
     setAnswers(newAnswers);
-    
-    if (step < questions.length - 1) {
-      setStep(step + 1);
+
+    if (currentIdx < questions.length - 1) {
+      setCurrentIdx(currentIdx + 1);
     } else {
-      // We've reached the end! Submit.
-      submitQuiz(newAnswers);
+      localStorage.setItem('quiz_answers', JSON.stringify(newAnswers));
+      localStorage.setItem('quiz_lang', language);
+      router.push(`/quiz/results?token=${token}`);
     }
   };
 
-  if (loading) return (
-    <div className="bg-black text-white h-screen flex flex-col items-center justify-center">
-        <div className="h-12 w-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-xl font-bold tracking-widest animate-pulse">ANALYZING YOUR VIBE...</p>
-    </div>
-  );
+  if (!questions.length) return <div className="bg-black min-h-screen" />;
+
+  const progress = ((currentIdx + 1) / questions.length) * 100;
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-lg">
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-800 h-1 mb-12 rounded-full overflow-hidden">
-            <motion.div 
-                className="bg-green-500 h-1" 
-                initial={{ width: 0 }}
-                animate={{ width: `${((step + 1) / questions.length) * 100}%` }}
-            />
+    <div className="min-h-screen bg-black text-white p-6 md:p-12 font-sans">
+      {/* Header with Language Selector */}
+      <div className="max-w-4xl mx-auto flex justify-between items-center mb-12">
+        <div className="h-1 flex-1 bg-zinc-800 rounded-full mr-8 overflow-hidden">
+          <div 
+            className="h-full bg-green-500 transition-all duration-500 ease-out" 
+            style={{ width: `${progress}%` }} 
+          />
         </div>
+        <LanguageSelector onLanguageChange={setLanguage} />
+      </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="text-center"
-          >
-            <span className="text-green-500 font-mono text-sm mb-2 block">QUESTION {step + 1} OF {questions.length}</span>
-            <h2 className="text-4xl font-black mb-12 tracking-tight">{questions[step].text}</h2>
-            
-            <div className="flex flex-col gap-6">
-               <input 
-                 type="range" min="1" max="10" defaultValue="5"
-                 className="w-full h-3 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-green-500"
-                 onMouseUp={(e) => handleAnswer(e.target.value)} // Submits when user lets go
-                 onTouchEnd={(e) => handleAnswer(e.target.value)}
-               />
-               <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-gray-500">
-                  <span>{questions[step].min}</span>
-                  <span>{questions[step].max}</span>
-               </div>
-            </div>
-          </motion.div>
-        </AnimatePresence>
+      <div className="max-w-4xl mx-auto mt-20">
+        <p className="text-zinc-500 font-mono mb-2">STEP {currentIdx + 1} OF 10</p>
+        <h2 className="text-4xl md:text-5xl font-black mb-12 tracking-tight">
+          {questions[currentIdx].text}
+        </h2>
+
+        {/* 6-Option Aesthetic Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {questions[currentIdx].options.map((opt, i) => (
+            <button
+              key={i}
+              onClick={() => handleSelect(opt)}
+              className="group relative p-6 bg-zinc-900 border border-zinc-800 rounded-2xl text-left hover:border-green-500 transition-all duration-300 active:scale-95 shadow-lg overflow-hidden"
+            >
+              <span className="relative z-10 font-medium group-hover:text-green-400 transition-colors">
+                {opt}
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
