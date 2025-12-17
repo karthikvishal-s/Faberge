@@ -1,0 +1,60 @@
+from flask import Flask, request, jsonify, redirect, session
+from flask_cors import CORS
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+import os
+from dotenv import load_dotenv
+from logic import calculate_vibe
+
+load_dotenv()
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
+CORS(app)
+
+# Spotify Auth Setup
+sp_oauth = SpotifyOAuth(
+    client_id=os.getenv("SPOTIPY_CLIENT_ID"),
+    client_secret=os.getenv("SPOTIPY_CLIENT_SECRET"),
+    redirect_uri=os.getenv("SPOTIPY_REDIRECT_URI"),
+    scope="playlist-modify-public user-top-read"
+)
+
+@app.route('/login')
+def login():
+    auth_url = sp_oauth.get_authorize_url()
+    return jsonify({"auth_url": auth_url})
+
+@app.route('/callback')
+def callback():
+    code = request.args.get('code')
+    token_info = sp_oauth.get_access_token(code)
+   
+    return redirect(f"http://localhost:3000/quiz?token={token_info['access_token']}")
+
+@app.route('/generate', methods=['POST'])
+def generate():
+    data = request.json
+    token = data.get('token')
+    answers = data.get('answers')
+    
+    sp = spotipy.Spotify(auth=token)
+    vibe_params = calculate_vibe(answers)
+    
+    # Fetch 15 recommendations
+    results = sp.recommendations(limit=15, **vibe_params)
+    
+    tracks = []
+    for track in results['tracks']:
+        tracks.append({
+            "id": track['id'],
+            "name": track['name'],
+            "artist": track['artists'][0]['name'],
+            "album_art": track['album']['images'][0]['url'],
+            "uri": track['uri']
+        })
+        
+    return jsonify(tracks)
+
+if __name__ == '__main__':
+    # Start on Port 4040 as requested
+    app.run(port=4040, debug=True)
