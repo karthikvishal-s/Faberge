@@ -39,22 +39,60 @@ def questions():
 def generate():
     data = request.json
     token = data.get('token')
-    
+    answers = data.get('answers')
+    vibe = calculate_vibe(answers)
+
     headers = {"Authorization": f"Bearer {token}"}
-    # Using Search to bypass 404 blocks
-    params = {"q": "vibe", "type": "track", "limit": 15}
 
     try:
-        res = requests.get("https://api.spotify.com/v1/search", headers=headers, params=params)
-        data = res.json()
+        # 1. Use SEARCH to find a "Seed Track" based on the user's vibe
+        # We search for a popular genre term derived from the quiz
+        energy = vibe.get('target_energy', 0.5)
+        search_query = "genre:party" if energy > 0.7 else "genre:chill"
+        
+        search_res = requests.get(
+            "https://api.spotify.com/v1/search", 
+            headers=headers, 
+            params={"q": search_query, "type": "track", "limit": 1}
+        ).json()
+
+        # Get the ID of the first track found
+        seed_track_id = search_res['tracks']['items'][0]['id']
+
+        # 2. Use that Track ID to get 15 RECOMMENDATIONS
+        # We pass your quiz targets (energy, danceability) to filter the results
+        rec_params = {
+            "limit": 15,
+            "seed_tracks": seed_track_id,
+            "target_energy": vibe['target_energy'],
+            "target_danceability": vibe['target_danceability'],
+            "target_valence": vibe['target_valence']
+        }
+
+        rec_res = requests.get(
+            "https://api.spotify.com/v1/recommendations", 
+            headers=headers, 
+            params=rec_params
+        )
+        
+        # 3. If recommendations still 404s, we fall back to the Search results
+        if rec_res.status_code != 200:
+            print("Fallback: Recommendations blocked, using Search results instead.")
+            final_tracks = search_res['tracks']['items']
+        else:
+            final_tracks = rec_res.json()['tracks']
+
+        # Format for Frontend
         tracks = [{
             "id": t['id'],
             "name": t['name'],
             "artist": t['artists'][0]['name'],
             "album_art": t['album']['images'][0]['url'] if t['album']['images'] else None,
             "uri": t['uri']
-        } for t in data['tracks']['items']]
+        } for t in final_tracks]
+
         return jsonify(tracks)
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
