@@ -1,75 +1,63 @@
-"use client";
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
+"use client"
+
+import React, { useState } from 'react';
 import axios from 'axios';
 
-export default function Results() {
-  const searchParams = useSearchParams();
-  const [tracks, setTracks] = useState([]);
-  const [isExporting, setIsExporting] = useState(false);
-  const token = searchParams.get('token');
+export default function Results({ tracks, token }) {
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    // In a real flow, you'd pass the actual answers here
-    // For now, we're fetching the generated 15 tracks
-    const savedAnswers = JSON.parse(localStorage.getItem('vibe_answers') || '{}');
+  const handleSync = async () => {
+    if (!tracks || tracks.length === 0) return;
     
-    axios.post('http://localhost:4040/generate', {
-      token: token,
-      answers: savedAnswers
-    }).then(res => setTracks(res.data));
-  }, [token]);
+    setLoading(true);
+    const trackUris = tracks.map(t => t.uri);
 
-  const exportToSpotify = async () => {
-    setIsExporting(true);
     try {
-      await axios.post('http://localhost:4040/export', { 
-        token, 
-        track_uris: tracks.map(t => t.uri) 
+      const response = await axios.post("http://localhost:4040/export", {
+        token: token,
+        track_uris: trackUris
       });
-      alert("Playlist created successfully on Spotify! 🚀");
+
+      if (response.data.status === "success") {
+        alert("Playlist synced to your Spotify!");
+        window.open(response.data.url, "_blank");
+      }
     } catch (err) {
-      alert("Export failed. Check console.");
+      console.error("Sync error:", err);
+      alert("Failed to sync playlist.");
+    } finally {
+      setLoading(false);
     }
-    setIsExporting(false);
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-4xl mx-auto">
-        <header className="flex justify-between items-end mb-12">
-          <div>
-            <h1 className="text-5xl font-extrabold tracking-tighter text-green-500">YOUR VIBE</h1>
-            <p className="text-gray-400 mt-2">15 tracks curated for your current frequency.</p>
-          </div>
-          <button 
-            onClick={exportToSpotify}
-            disabled={isExporting}
-            className="bg-green-600 hover:bg-green-500 text-black font-bold py-3 px-8 rounded-full transition-transform active:scale-95 disabled:opacity-50"
-          >
-            {isExporting ? "Syncing..." : "Sync to Spotify"}
-          </button>
-        </header>
+    <div className="p-8 bg-black text-white">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-4xl font-bold text-green-500">YOUR VIBE</h1>
+        <button 
+          onClick={handleSync}
+          disabled={loading}
+          className="bg-green-500 text-black px-6 py-2 rounded-full font-bold hover:bg-green-400 transition"
+        >
+          {loading ? "Syncing..." : "Sync to Spotify"}
+        </button>
+      </div>
 
-        <div className="grid gap-4">
-          {tracks.map((track, index) => (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              key={track.id}
-              className="flex items-center p-4 bg-gray-900/50 hover:bg-gray-800 rounded-xl group transition-colors"
-            >
-              <img src={track.album_art} className="w-16 h-16 rounded shadow-lg mr-6" alt={track.name} />
-              <div className="flex-1">
-                <h3 className="font-bold text-lg group-hover:text-green-400 transition-colors">{track.name}</h3>
-                <p className="text-gray-400">{track.artist}</p>
-              </div>
-              <div className="text-gray-600 font-mono text-sm">#{(index + 1).toString().padStart(2, '0')}</div>
-            </motion.div>
-          ))}
-        </div>
+      <div className="space-y-4">
+        {tracks.map((track, index) => (
+          <div key={track.id} className="flex items-center bg-gray-900 p-4 rounded-lg border border-gray-800">
+            <img 
+              src={track.album_art || "/placeholder.png"} 
+              alt={track.name} 
+              className="w-16 h-16 rounded mr-4"
+            />
+            <div className="flex-1">
+              <h3 className="font-bold">{track.name}</h3>
+              <p className="text-gray-400">{track.artist}</p>
+            </div>
+            <span className="text-gray-600 font-mono">#{String(index + 1).padStart(2, '0')}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
