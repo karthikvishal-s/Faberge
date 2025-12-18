@@ -11,69 +11,58 @@ function QuizContent() {
   const [answers, setAnswers] = useState({});
   const [lang, setLang] = useState('English');
 
-  const token = searchParams.get('token');
-  const email = searchParams.get('email');
-  const languages = ["English", "Hindi", "Tamil", "Telugu", "Punjabi", "Spanish", "Korean", "Japanese"];
+  const languages = ["English", "Hindi", "Tamil", "Telugu", "Punjabi", "Spanish", "Korean", "Japanese", "French"];
 
   useEffect(() => {
     axios.get("http://localhost:4040/questions").then(res => setQuestions(res.data));
-    // Default the language in storage
     localStorage.setItem('quiz_lang', 'English');
   }, []);
 
   const handleSelect = (option) => {
     const newAnswers = { ...answers, [questions[currentIdx].id]: option };
     setAnswers(newAnswers);
-
     if (currentIdx < questions.length - 1) {
       setCurrentIdx(currentIdx + 1);
     } else {
       localStorage.setItem('quiz_answers', JSON.stringify(newAnswers));
-      // Baton pass to results
-      router.push(`/quiz/results?token=${token}&email=${email}`);
+      router.push(`/quiz/results?token=${searchParams.get('token')}&email=${searchParams.get('email')}`);
     }
   };
 
-  const changeLanguage = (newLang) => {
-    setLang(newLang);
-    localStorage.setItem('quiz_lang', newLang);
-  };
-
-  if (questions.length === 0) return <div className="bg-black min-h-screen" />;
-
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* --- The Language Nutiness --- */}
-      <div className="absolute top-10 right-10 flex flex-col items-end">
-        <label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2">Vibe Dialect</label>
-        <select 
-          value={lang} 
-          onChange={(e) => changeLanguage(e.target.value)}
-          className="bg-transparent border border-white/20 text-white px-4 py-2 text-xs uppercase tracking-widest outline-none hover:border-green-500 transition-colors cursor-pointer"
-        >
-          {languages.map(l => <option key={l} value={l} className="bg-black text-white">{l}</option>)}
-        </select>
+    <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      
+      {/* LUXURY LANGUAGE SELECTOR */}
+      <div className="flex flex-col items-center mb-16 w-full max-w-4xl">
+        <span className="text-[9px] uppercase tracking-[0.6em] text-zinc-600 mb-8">Select Alignment</span>
+        <div className="flex gap-4 overflow-x-auto no-scrollbar w-full justify-start md:justify-center px-4">
+          {languages.map((l) => (
+            <button
+              key={l}
+              onClick={() => { setLang(l); localStorage.setItem('quiz_lang', l); }}
+              className={`px-8 py-3 rounded-full border text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
+                lang === l ? "bg-green-500 border-green-500 text-black" : "border-white/5 text-zinc-500 hover:border-white/20"
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <p className="text-green-500 mb-4 font-mono text-sm tracking-tighter animate-pulse">
-        {lang.toUpperCase()} FREQUENCY // TRIAL {currentIdx + 1}
-      </p>
-
-      <h2 className="text-4xl font-black italic mb-12 text-center max-w-2xl leading-tight uppercase">
-        {questions[currentIdx].text}
-      </h2>
-
-      <div className="grid grid-cols-2 gap-4 w-full max-w-xl">
-        {questions[currentIdx].options.map(opt => (
-          <button 
-            key={opt} 
-            onClick={() => handleSelect(opt)}
-            className="group relative border border-white/10 py-6 px-4 overflow-hidden transition-all hover:border-green-500"
-          >
-            <span className="relative z-10 font-bold uppercase text-xs tracking-widest group-hover:text-black transition-colors">{opt}</span>
-            <div className="absolute inset-0 bg-green-500 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-          </button>
-        ))}
+      {/* QUESTION UI */}
+      <div className="w-full max-w-2xl text-center">
+        <p className="font-mono text-green-500/50 text-[10px] mb-4 tracking-[0.3em] uppercase">Step {currentIdx + 1} of 5</p>
+        <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter leading-tight mb-12">
+          {questions[currentIdx]?.text}
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {questions[currentIdx]?.options.map(opt => (
+            <button key={opt} onClick={() => handleSelect(opt)} className="group relative border border-white/5 py-6 px-4 hover:border-green-500/50 transition-all overflow-hidden bg-zinc-900/20 rounded-xl">
+              <span className="relative z-10 text-[11px] uppercase tracking-widest font-bold group-hover:text-green-500 transition-colors">{opt}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

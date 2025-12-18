@@ -3,7 +3,6 @@ from flask_cors import CORS
 from spotipy.oauth2 import SpotifyOAuth
 import requests
 import os
-import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,10 +12,8 @@ from services.spotify_service import get_bulk_tracks
 from services.db_service import sync_user_data, save_generation, fetch_last_vibe
 
 app = Flask(__name__)
-# Enable CORS for all routes so Frontend can talk to Backend
 CORS(app)
 
-# 1. SCOPES: Added modify-public and modify-private for the Sync feature
 sp_oauth = SpotifyOAuth(
     client_id=os.getenv("SPOTIPY_CLIENT_ID"),
     client_secret=os.getenv("SPOTIPY_CLIENT_SECRET"),
@@ -26,6 +23,7 @@ sp_oauth = SpotifyOAuth(
 
 @app.route('/questions')
 def questions():
+    # The 5 Crucial Universal Questions
     return jsonify([
         {"id": "genre", "text": "What is the primary sonic foundation?", "options": ["Classical/Jazz", "Rock/Indie", "Pop/Mainstream", "Electronic/Dance", "Hip-Hop/R&B", "Folk/Acoustic"]},
         {"id": "era", "text": "Which timeline should we inhabit?", "options": ["Golden Classics (60s-70s)", "Vintage Nostalgia (80s-90s)", "Modern Transition (00s-10s)", "The Cutting Edge (Present)"]},
@@ -33,6 +31,30 @@ def questions():
         {"id": "setting", "text": "Where is this sound living?", "options": ["A Late Night Drive", "Intense Physical Labor", "Quiet Morning Solitude", "A Social Celebration"]},
         {"id": "discovery", "text": "How deep should we dig?", "options": ["The Chart Toppers", "Hidden Gems", "Complete Underground", "A Balanced Blend"]}
     ])
+
+@app.route('/generate', methods=['POST'])
+def generate():
+    data = request.json
+    print("\n🪄 GENERATING FROM VIBE PARAGRAPH...")
+    
+    # 1. Get AI response (Fixed the NoneType error by handling the return)
+    ai_res = get_recommendations(data.get('answers'), data.get('language', 'English'))
+    
+    if not ai_res:
+        return jsonify({"error": "AI failed to generate vibe"}), 500
+
+    # 2. Extract tracks and enrich with Spotify metadata
+    ai_tracks = ai_res.get('tracks', [])
+    enriched_tracks = get_bulk_tracks(ai_tracks, data.get('token'))
+    
+    full_payload = {
+        "summary": ai_res.get('summary', "A custom selection for your mood."),
+        "vibe_stats": ai_res.get('vibe_stats', []),
+        "tracks": enriched_tracks
+    }
+    
+    save_generation(data.get('email'), full_payload)
+    return jsonify(full_payload)
 @app.route('/login')
 def login():
     return jsonify({"auth_url": sp_oauth.get_authorize_url()})
@@ -52,26 +74,6 @@ def get_history():
     history = fetch_last_vibe(email)
     return jsonify(history if history else [])
 
-@app.route('/generate', methods=['POST'])
-def generate():
-    data = request.json
-    print("\n🪄 NEW GENERATION REQUEST")
-    
-    # 1. AI Generation (Summary + Stats + Tracks)
-    ai_res = get_recommendations(data.get('answers'), data.get('language', 'English'))
-    
-    # 2. Spotify Search (Only send the track list part)
-    enriched_tracks = get_bulk_tracks(ai_res.get('tracks', []), data.get('token'))
-    
-    # 3. Final Payload
-    full_payload = {
-        "summary": ai_res.get('summary'),
-        "vibe_stats": ai_res.get('vibe_stats'),
-        "tracks": enriched_tracks
-    }
-    
-    save_generation(data.get('email'), full_payload)
-    return jsonify(full_payload)
 
 @app.route('/export', methods=['POST'])
 def export():
