@@ -6,83 +6,60 @@ import axios from 'axios';
 function ResultsContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const email = searchParams.get('email');
   
-  const [tracks, setTracks] = useState(null);
+  const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [playlistName, setPlaylistName] = useState("My VibeCheck AI Playlist");
 
   useEffect(() => {
-    const email = searchParams.get('email');
-    
-    const loadContent = async () => {
-      // Attempt to load previous vibe from DB first
+    if (!token || !email) return;
+
+    const fetchVibe = async () => {
       try {
+        // 1. Check History (Supabase)
         const history = await axios.get(`http://localhost:4040/get-history?email=${email}`);
-        if (history.data) {
+        if (history.data && history.data.length > 0) {
           setTracks(history.data);
           setLoading(false);
           return;
         }
-        // If no history, proceed to generate new vibe...
-      } catch (e) { console.error("History fetch failed"); }
-    };
-    
-    if (email && !tracks) loadContent();
-  }, [token, tracks]);
 
-  const handleSync = async () => {
-    setSyncing(true);
-    try {
-      const res = await axios.post("http://localhost:4040/export", {
-        token,
-        track_uris: tracks.map(t => t.uri),
-        playlist_name: playlistName
-      });
-      if (res.data.status === "success") window.open(res.data.url, "_blank");
-    } catch (err) { alert("Sync failed"); }
-    finally { setSyncing(false); }
-  };
+        // 2. If no history, Generate new
+        const answers = JSON.parse(localStorage.getItem('quiz_answers') || '{}');
+        const res = await axios.post("http://localhost:4040/generate", { 
+          token, email, answers, language: 'en' 
+        });
+        setTracks(res.data);
+      } catch (err) {
+        console.error("Vibe Error", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVibe();
+  }, [token, email]);
 
   if (loading) return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
-      <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4" />
-      <p className="animate-pulse tracking-widest uppercase">Reading your frequency...</p>
+    <div className="bg-black min-h-screen flex flex-col items-center justify-center text-green-500">
+      <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4" />
+      <p className="font-mono italic animate-pulse">READING YOUR FREQUENCY...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 md:p-20">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-6xl font-black text-green-500 mb-10 italic tracking-tighter">THE RESULT</h1>
-        
-        <div className="flex flex-col md:flex-row gap-4 mb-12 bg-zinc-900 p-6 rounded-3xl border border-zinc-800">
-          <input 
-            className="flex-1 bg-black border border-zinc-700 p-4 rounded-2xl outline-none focus:border-green-500"
-            value={playlistName}
-            onChange={(e) => setPlaylistName(e.target.value)}
-          />
-          <button 
-            onClick={handleSync}
-            disabled={syncing}
-            className="bg-green-500 text-black font-black px-10 py-4 rounded-2xl hover:bg-green-400 transition-colors disabled:opacity-50"
-          >
-            {syncing ? "SYNCING..." : "SYNC TO SPOTIFY"}
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4">
-          {tracks?.map((track, i) => (
-            <div key={track.id} className="flex items-center bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800 hover:border-zinc-700 transition-colors">
-              <img src={track.album_art} className="w-16 h-16 rounded-xl shadow-lg mr-6" />
-              <div className="flex-1">
-                <p className="font-bold text-lg">{track.name}</p>
-                <p className="text-zinc-500">{track.artist}</p>
-              </div>
-              <span className="text-zinc-800 font-black text-2xl">#{i+1}</span>
+    <div className="bg-black min-h-screen p-10 text-white">
+      <h1 className="text-4xl font-black italic mb-10">FABERGÉ SELECTION</h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {tracks.map((track) => (
+          <div key={track.id} className="bg-zinc-900 p-4 rounded-lg flex items-center gap-4">
+            <img src={track.album_art} className="w-16 h-16 rounded" alt="cover" />
+            <div>
+              <p className="font-bold line-clamp-1">{track.name}</p>
+              <p className="text-zinc-400 text-sm">{track.artist}</p>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );

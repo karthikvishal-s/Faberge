@@ -3,6 +3,7 @@ from flask_cors import CORS
 from spotipy.oauth2 import SpotifyOAuth
 import requests
 import os
+import time
 from dotenv import load_dotenv
 
 # Load Environment Variables
@@ -69,17 +70,34 @@ def callback():
 
 @app.route('/generate', methods=['POST'])
 def generate():
+    print("\n" + "="*50)
+    print("🪄  NEW GENERATION REQUEST RECEIVED")
+    print("="*50)
+    
+    start_total = time.time()
     data = request.json
     email = data.get('email')
     token = data.get('token')
-    
-    ai_list = get_recommendations(data.get('answers'), data.get('language'))
-    tracks = get_bulk_tracks(ai_list, token)
-    
-    save_generation(email, tracks)
-    return jsonify(tracks)
+    lang = data.get('language', 'en')
 
-@app.route('/export', methods=['POST'])
+    # STEP 1: AI GENERATION
+    print(f"🧠 [AI] Consulting Gemini for '{lang}' vibe...")
+    ai_start = time.time()
+    ai_list = get_recommendations(data.get('answers'), lang)
+    print(f"✨ [AI] Gemini returned {len(ai_list)} songs in {round(time.time() - ai_start, 2)}s")
+
+    # STEP 2: SPOTIFY METADATA
+    tracks = get_bulk_tracks(ai_list, token)
+
+    # STEP 3: DATABASE PERSISTENCE
+    print(f"💾 [DB] Saving session for {email}...")
+    save_generation(email, tracks)
+    
+    total_time = round(time.time() - start_total, 2)
+    print(f"🎉 [SUCCESS] Total processing time: {total_time}s")
+    print("="*50 + "\n")
+    
+    return jsonify(tracks)
 def export_playlist():
     try:
         data = request.json
