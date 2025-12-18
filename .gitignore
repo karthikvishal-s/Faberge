@@ -1,8 +1,13 @@
-# Environment variables
-backend/.env
-.env
+# Dependencies
+node_modules/
 
-# Optional: ignore all .env files everywhere
+# Environment variables
+.env
+.env.local
+.env.*.local
+backend/.env
 **/.env
 
-node_modules
+# OS files
+.DS_Store
+Thumbs.db
