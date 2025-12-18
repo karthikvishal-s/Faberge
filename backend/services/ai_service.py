@@ -1,33 +1,45 @@
 import os
 import json
-import google.genai as genai  # Changed this line
-from datetime import datetime
+import google.genai as genai
 
 def get_recommendations(answers, lang):
-    # Initialize the client
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
-    system_message = (
-        "You are a music recommendation engine. Output ONLY valid JSON. "
-        "Format: [{\"artist\": \"Name\", \"track\": \"Name\"}, ...]"
+    system_instruction = (
+       f"""You are Fabergé, a luxury music psychologist.give me 15 songs in {lang} language available in spotify. Output ONLY valid JSON. """
+        "Analyze the user's soul and return a 3-part response: tracks, a poetic 1-sentence summary, "
+        "and vibe_stats (4-5 categories with percentages for a pie chart)."
     )
 
-    prompt = f"Based on these vibe answers: {json.dumps(answers)}, recommend 15 real songs. Language: {lang}."
+    prompt = f"""
+    USER ANSWERS: {json.dumps(answers)}
+    LANGUAGE: {lang}
+
+    RETURN FORMAT (Strict JSON):
+    {{
+      "summary": "One sentence describing the psychological musical profile.",
+      "vibe_stats": [
+        {{"name": "Nostalgia", "value": 30}},
+        {{"name": "Energy", "value": 20}},
+        ...
+      ],
+      "tracks": [
+        {{"artist": "Name", "track": "Title"}},
+        ...
+      ]
+    }}
+    """
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             contents=prompt,
             config={
-                "system_instruction": system_message,
+                "system_instruction": system_instruction,
                 "response_mime_type": "application/json"
             }
         )
-        
-        # Parse the JSON response
         return json.loads(response.text.strip())
-
     except Exception as e:
-        print(f"❌ [AI ERROR]: {e}")
-        # Fallback list to prevent 500 errors
-        return [{"artist": "The Weeknd", "track": "Blinding Lights"}]
+        print(f"❌ AI Error: {e}")
+        return {"summary": "A balanced selection for your mood.", "vibe_stats": [], "tracks": []}

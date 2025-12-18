@@ -27,22 +27,20 @@ sp_oauth = SpotifyOAuth(
 
 # --- 1. DATA ROUTES ---
 
-@app.route('/questions', methods=['GET'])
+@app.route('/questions')
 def questions():
-    """Returns the 10 high-fidelity vibe questions for the frontend."""
     return jsonify([
-        {"id": "q1", "text": "Current energy as a movie genre?", "options": ["Indie Coming-of-age", "Noir Thriller", "Action", "Romance", "Sci-Fi", "Drama"]},
-        {"id": "q2", "text": "Current room lighting?", "options": ["Golden Hour", "Neon Purple", "Candlelight", "Studio White", "Shadows", "Fairy Lights"]},
-        {"id": "q3", "text": "Driving on an empty road... where?", "options": ["Coastline", "Pine Forest", "Tokyo Streets", "Desert", "Mountains", "Rainy Alley"]},
-        {"id": "q4", "text": "Social Battery?", "options": ["5%", "25%", "50%", "75%", "100%", "120%"]},
-        {"id": "q5", "text": "Taste of your mood?", "options": ["Matcha", "Espresso", "Spicy Chili", "Strawberry", "Rain Water", "Champagne"]},
-        {"id": "q6", "text": "Nostalgic era?", "options": ["70s", "80s", "90s", "00s", "Future", "Victorian"]},
-        {"id": "q7", "text": "Desired feeling?", "options": ["Invincible", "Melancholic", "Focused", "Cool", "Light", "Angry"]},
-        {"id": "q8", "text": "Core aesthetic?", "options": ["Cottagecore", "Cybercore", "Academia", "Minimalism", "Glitchcore", "Dreamcore"]},
-        {"id": "q9", "text": "Main character moment?", "options": ["Rainy run", "Train window", "Party entrance", "Library", "2AM Drive", "Field wake-up"]},
-        {"id": "q10", "text": "Your thoughts as a sound?", "options": ["Waves", "Vinyl crackle", "Heartbeat", "Piano", "Static", "Bass drop"]}
+        {"id": "q1", "text": "What's the primary genre you're looking for?", "options": ["Rock", "Pop", "Jazz/Blues", "Classical", "Hip-Hop", "Electronic/Dance"]},
+        {"id": "q2", "text": "Which era should define the sound?", "options": ["60s-70s Classics", "80s-90s Nostalgia", "2000s-2010s", "Modern Day", "A Mix of Eras", "Futuristic"]},
+        {"id": "q3", "text": "What is your current mood?", "options": ["Happy & Upbeat", "Relaxed & Calm", "Melancholic/Sad", "Focused/Productive", "Aggressive/Hype", "Romantic"]},
+        {"id": "q4", "text": "How much discovery do you want?", "options": ["Mainstream Hits", "Underrated Gems", "Complete Unknowns", "A Balanced Mix", "Classic Anthems", "Trending Now"]},
+        {"id": "q5", "text": "What is the setting?", "options": ["Morning Coffee", "Gym Workout", "Late Night Drive", "Office/Study", "Party/Social", "Rainy Day"]},
+        {"id": "q6", "text": "What should this playlist do for you?", "options": ["Energize me", "Help me relax", "Make me think", "Keep me company", "Evoke nostalgia", "Motivate me"]},
+        {"id": "q7", "text": "What energy level do you need?", "options": ["Acoustic/Soft", "Mid-tempo/Groovy", "High Energy", "Maximum Intensity"]},
+        {"id": "q8", "text": "Select your sonic texture:", "options": ["Vintage & Warm", "Clean & Modern", "Raw & Gritty", "Electronic & Synthetic"]},
+        {"id": "q9", "text": "Vocals or Instrumental?", "options": ["Mostly Vocals", "Mostly Instrumental", "A Healthy Mix", "Spoken Word/Lofi"]},
+        {"id": "q10", "text": "Main character moment?", "options": ["Walking in slow-mo", "Thinking by a window", "Center of a dancefloor", "Exploring a new city"]}
     ])
-
 # --- 2. AUTH ROUTES ---
 
 @app.route('/login')
@@ -70,61 +68,42 @@ def callback():
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    print("\n" + "="*50)
-    print("🪄  NEW GENERATION REQUEST RECEIVED")
-    print("="*50)
-    
-    start_total = time.time()
     data = request.json
     email = data.get('email')
     token = data.get('token')
-    lang = data.get('language', 'en')
+    lang = data.get('language', 'English')
 
-    # STEP 1: AI GENERATION
-    print(f"🧠 [AI] Consulting Gemini for '{lang}' vibe...")
-    ai_start = time.time()
-    ai_list = get_recommendations(data.get('answers'), lang)
-    print(f"✨ [AI] Gemini returned {len(ai_list)} songs in {round(time.time() - ai_start, 2)}s")
-
-    # STEP 2: SPOTIFY METADATA
-    tracks = get_bulk_tracks(ai_list, token)
-
-    # STEP 3: DATABASE PERSISTENCE
-    print(f"💾 [DB] Saving session for {email}...")
-    save_generation(email, tracks)
+    # 1. Get the full AI response (summary, stats, and tracks)
+    ai_response = get_recommendations(data.get('answers'), lang)
     
-    total_time = round(time.time() - start_total, 2)
-    print(f"🎉 [SUCCESS] Total processing time: {total_time}s")
-    print("="*50 + "\n")
+    # 2. Extract the track list for Spotify searching
+    ai_track_list = ai_response.get('tracks', [])
     
-    return jsonify(tracks)
-def export_playlist():
-    try:
-        data = request.json
-        token = data.get('token')
-        track_uris = data.get('track_uris')
-        playlist_name = data.get('playlist_name', "Fabergé Vibe Selection")
-
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        
-        # Get User ID
-        me = requests.get("https://api.spotify.com/v1/me", headers=headers).json()
-        user_id = me['id']
-        
-        # Create Playlist
-        playlist = requests.post(f"https://api.spotify.com/v1/users/{user_id}/playlists", 
-                                headers=headers, 
-                                json={"name": playlist_name, "description": "Curated by Fabergé AI", "public": False}).json()
-        
-        # Add Tracks
-        requests.post(f"https://api.spotify.com/v1/playlists/{playlist['id']}/tracks", 
-                     headers=headers, 
-                     json={"uris": track_uris})
-        
-        return jsonify({"status": "success", "url": playlist['external_urls']['spotify']})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+    # 3. Search Spotify for metadata
+    spotify_tracks = get_bulk_tracks(ai_track_list, token)
+    
+    # 4. Attach the enriched Spotify data back to the original response
+    full_payload = {
+        "summary": ai_response.get('summary'),
+        "vibe_stats": ai_response.get('vibe_stats'),
+        "tracks": spotify_tracks  # Now with album art and URIs
+    }
+    
+    # 5. Save to DB
+    save_generation(email, full_payload)
+    
+    return jsonify(full_payload)
+@app.route('/export', methods=['POST'])
+def export():
+    data = request.json
+    token, uris, name = data.get('token'), data.get('uris'), data.get('name')
+    headers = {"Authorization": f"Bearer {token}"}
+    user = requests.get("https://api.spotify.com/v1/me", headers=headers).json()
+    playlist = requests.post(f"https://api.spotify.com/v1/users/{user['id']}/playlists", 
+                             headers=headers, json={"name": name, "public": False}).json()
+    requests.post(f"https://api.spotify.com/v1/playlists/{playlist['id']}/tracks", 
+                  headers=headers, json={"uris": uris})
+    return jsonify({"url": playlist['external_urls']['spotify']})
 @app.route('/get-history', methods=['GET'])
 def get_history():
     email = request.args.get('email')

@@ -12,13 +12,14 @@ def sync_user_data(email, spotify_id):
         "email": email, "spotify_id": spotify_id
     }).execute()
 
-def save_generation(email, tracks):
-    """Called after AI finishes."""
-    # Increment count via RPC function we made
+def save_generation(email, full_payload):
+    """Saves the entire vibe dashboard to Supabase."""
+    # Increment search count
     supabase.rpc('increment_search_count', {'user_email': email}).execute()
-    # Save the playlist JSON
+    
+    # Save the full JSON (summary + stats + tracks)
     return supabase.table("user_stats").update({
-        "last_vibe_json": tracks
+        "last_vibe_json": full_payload
     }).eq("email", email).execute()
 
 def fetch_last_vibe(email):
