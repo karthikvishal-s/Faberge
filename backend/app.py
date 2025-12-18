@@ -95,7 +95,7 @@ def generate():
         
         # 1. Ask Gemini
         model = get_rotated_model()
-        prompt = f"Recommend 15 real songs based on these vibe answers: {json.dumps(answers)}. Language: {lang}. Return ONLY a JSON array of objects with 'artist' and 'track' keys."
+        prompt = f"Recommend 15 real tamil songs based on these vibe answers: {json.dumps(answers)}. Language: {lang}. Return ONLY a JSON array of objects with 'artist' and 'track' keys."
         
         response = model.generate_content(prompt)
         model_tracker["count"] += 1
