@@ -13,35 +13,22 @@ function ResultsContent() {
   const [playlistName, setPlaylistName] = useState("My VibeCheck AI Playlist");
 
   useEffect(() => {
-    const fetchData = async () => {
-      // 1. Check Cache
-      const cached = localStorage.getItem('vibe_cache');
-      if (cached) {
-        setTracks(JSON.parse(cached));
-        setLoading(false);
-        return;
-      }
-
-      // 2. Fetch from Backend
-      const answers = JSON.parse(localStorage.getItem('quiz_answers') || '{}');
-      const language = localStorage.getItem('quiz_lang') || 'en';
-
+    const email = searchParams.get('email');
+    
+    const loadContent = async () => {
+      // Attempt to load previous vibe from DB first
       try {
-        const res = await axios.post("http://localhost:4040/generate", { 
-            token, 
-            answers, 
-            language 
-        });
-        setTracks(res.data);
-        localStorage.setItem('vibe_cache', JSON.stringify(res.data));
-      } catch (err) {
-        console.error("Fetch error", err);
-      } finally {
-        setLoading(false);
-      }
+        const history = await axios.get(`http://localhost:4040/get-history?email=${email}`);
+        if (history.data) {
+          setTracks(history.data);
+          setLoading(false);
+          return;
+        }
+        // If no history, proceed to generate new vibe...
+      } catch (e) { console.error("History fetch failed"); }
     };
-
-    if (token && !tracks) fetchData();
+    
+    if (email && !tracks) loadContent();
   }, [token, tracks]);
 
   const handleSync = async () => {
