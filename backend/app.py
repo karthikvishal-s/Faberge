@@ -27,18 +27,12 @@ sp_oauth = SpotifyOAuth(
 @app.route('/questions')
 def questions():
     return jsonify([
-        {"id": "q1", "text": "What's the primary genre?", "options": ["Rock", "Pop", "Jazz", "Classical", "Hip-Hop", "Electronic"]},
-        {"id": "q2", "text": "Which era defines the sound?", "options": ["60s-70s", "80s-90s", "2000s-2010s", "Modern Day", "A Mix", "Futuristic"]},
-        {"id": "q3", "text": "What is your current mood?", "options": ["Happy", "Calm", "Melancholic", "Focused", "Hype", "Romantic"]},
-        {"id": "q4", "text": "Discovery level?", "options": ["Mainstream Hits", "Underrated Gems", "Complete Unknowns", "Balanced Mix"]},
-        {"id": "q5", "text": "What is the setting?", "options": ["Morning Coffee", "Workout", "Night Drive", "Study", "Party", "Rainy Day"]},
-        {"id": "q6", "text": "Playlist goal?", "options": ["Energize", "Relax", "Think", "Keep Company", "Nostalgia", "Motivate"]},
-        {"id": "q7", "text": "Energy level?", "options": ["Acoustic", "Mid-tempo", "High Energy", "Maximum"]},
-        {"id": "q8", "text": "Sonic texture?", "options": ["Vintage", "Modern", "Gritty", "Synthetic"]},
-        {"id": "q9", "text": "Vocals?", "options": ["Mostly Vocals", "Instrumental", "Healthy Mix"]},
-        {"id": "q10", "text": "Character moment?", "options": ["Slow-mo walk", "Window thinking", "Dancefloor", "Exploring"]}
+        {"id": "genre", "text": "What is the primary sonic foundation?", "options": ["Classical/Jazz", "Rock/Indie", "Pop/Mainstream", "Electronic/Dance", "Hip-Hop/R&B", "Folk/Acoustic"]},
+        {"id": "era", "text": "Which timeline should we inhabit?", "options": ["Golden Classics (60s-70s)", "Vintage Nostalgia (80s-90s)", "Modern Transition (00s-10s)", "The Cutting Edge (Present)"]},
+        {"id": "mood", "text": "What is the current emotional frequency?", "options": ["High Energy/Hype", "Deep Focus/Steady", "Melancholic/Reflective", "Pure Relaxation/Calm"]},
+        {"id": "setting", "text": "Where is this sound living?", "options": ["A Late Night Drive", "Intense Physical Labor", "Quiet Morning Solitude", "A Social Celebration"]},
+        {"id": "discovery", "text": "How deep should we dig?", "options": ["The Chart Toppers", "Hidden Gems", "Complete Underground", "A Balanced Blend"]}
     ])
-
 @app.route('/login')
 def login():
     return jsonify({"auth_url": sp_oauth.get_authorize_url()})
