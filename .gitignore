@@ -4,3 +4,5 @@ backend/.env
 
 # Optional: ignore all .env files everywhere
 **/.env
+
+/node_modules
