@@ -33,5 +33,6 @@ def get_recommendations(answers, lang):
         )
         return json.loads(response.text.strip())
     except Exception as e:
+        
         print(f"❌ AI Error: {e}")
         return None # Handled by the check in app.py
